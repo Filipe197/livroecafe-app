@@ -19,7 +19,7 @@ function BookCard({ book, onClick }) {
       <div style={{ position: 'relative', marginBottom: 6 }}>
         <img src={book.cover_url} alt={book.title}
           style={{ width: 120, height: 170, objectFit: 'cover', borderRadius: 8 }}
-          onError={e => { e.target.src = 'https://placehold.co/120x170/1a1916/e8c97a?text=📚' }} />
+          onError={e => { e.target.src = 'https://placehold.co/120x170/1a1916/e8c97a?text=📖' }} />
         {book.is_new && (
           <span style={{ position: 'absolute', top: 6, left: 6, background: '#d45a3a', color: '#fff', fontSize: 8, fontWeight: 500, padding: '2px 6px', borderRadius: 6 }}>NOVO</span>
         )}
@@ -37,25 +37,18 @@ export default function Explore() {
   const [formatFilter, setFormatFilter] = useState('todos')
   const navigate = useNavigate()
 
-  // Get genres the user has read
-  const readGenres = [...new Set(
-    allProgress.map(p => p.books?.genre).filter(Boolean)
-  )]
-
-  // Recommend based on read genres
+  const readGenres = [...new Set(allProgress.map(p => p.books?.genre).filter(Boolean))]
   const readBookIds = new Set(allProgress.map(p => p.book_id))
   const recommended = readGenres.length > 0
     ? allBooks.filter(b => !readBookIds.has(b.id) && readGenres.includes(b.genre))
     : allBooks.filter(b => b.featured)
 
-  // Format filter
   const formatFiltered = allBooks.filter(b => {
     if (formatFilter === 'epub') return b.formats?.epub && b.formats.epub.length > 4
     if (formatFilter === 'pdf') return b.formats?.pdf && b.formats.pdf.length > 4
     return true
   })
 
-  // Genre groups
   const byGenre = {}
   allBooks.forEach(b => {
     if (!b.genre) return
@@ -66,8 +59,22 @@ export default function Explore() {
   return (
     <div className="fade-in">
       <div style={{ padding: '20px 16px 10px' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 4 }}>Explorar</h1>
-        <p style={{ fontSize: 13, color: 'var(--dim)' }}>Descubra seu próximo livro favorito</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: 0 }}>Explorar</h1>
+        </div>
+
+        {/* Search bar — clicável, leva para /search */}
+        <div
+          onClick={() => navigate('/search')}
+          style={{
+            marginTop: 12, display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--surface)', border: '0.5px solid var(--border)',
+            borderRadius: 24, padding: '10px 16px', cursor: 'pointer'
+          }}
+        >
+          <span style={{ fontSize: 15, opacity: 0.5 }}>🔍</span>
+          <span style={{ fontSize: 14, color: 'var(--dim)' }}>Buscar por título, autor ou gênero...</span>
+        </div>
       </div>
 
       {/* Format filter */}
@@ -82,14 +89,14 @@ export default function Explore() {
             color: formatFilter === f.id ? '#0f0e0c' : 'var(--muted)',
             fontWeight: formatFilter === f.id ? 500 : 400,
             border: `0.5px solid ${formatFilter === f.id ? 'var(--gold)' : 'var(--border)'}`,
-            borderRadius: 16, padding: '7px 16px', fontSize: 12
+            borderRadius: 16, padding: '7px 16px', fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit'
           }}>{f.label}</button>
         ))}
       </div>
 
       {loading ? <Spinner /> : (
         <>
-          {/* Format filtered results */}
           {formatFilter !== 'todos' && (
             <>
               <p className="section-label">{formatFilter === 'epub' ? '📖 Disponível em EPUB' : '📄 Disponível em PDF'}</p>
@@ -104,7 +111,6 @@ export default function Explore() {
 
           {formatFilter === 'todos' && (
             <>
-              {/* Personalized recommendations */}
               {user && (
                 <>
                   <p className="section-label">
@@ -125,7 +131,6 @@ export default function Explore() {
                 </>
               )}
 
-              {/* Not logged in — show popular */}
               {!user && (
                 <>
                   <p className="section-label">⭐ Mais populares</p>
@@ -134,18 +139,9 @@ export default function Explore() {
                       <BookCard key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />
                     ))}
                   </div>
-                  <div style={{ margin: '12px 16px', background: 'rgba(232,201,122,0.08)', border: '0.5px solid rgba(232,201,122,0.2)', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 28 }}>🎯</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>Recomendações personalizadas</div>
-                      <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 8 }}>Faça login para ver livros baseados no seu histórico</div>
-                      <button onClick={() => navigate('/auth')} style={{ background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 500 }}>Entrar</button>
-                    </div>
-                  </div>
                 </>
               )}
 
-              {/* By genre */}
               {Object.entries(byGenre).map(([genre, books]) => (
                 <div key={genre}>
                   <p className="section-label">{genre}</p>
@@ -160,6 +156,7 @@ export default function Explore() {
           )}
         </>
       )}
+      <div style={{ height: 80 }} />
     </div>
   )
 }
