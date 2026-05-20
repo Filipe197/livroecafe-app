@@ -1,141 +1,154 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "../supabaseClient";
 
-const FORMATS = [
-  { key: 'all', label: 'Todos' },
-  { key: 'epub', label: 'EPUB' },
-  { key: 'pdf', label: 'PDF' },
-  { key: 'mp3', label: 'Áudio' },
-]
-
-function BookRow({ book, onClick }) {
-  return (
-    <div onClick={onClick} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', alignItems: 'center' }}>
-      <img src={book.cover_url} alt={book.title} style={{ width: 48, height: 68, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} onError={e => { e.target.src = 'https://placehold.co/48x68/1a1916/e8c97a?text=📚' }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 5 }}>{book.author}</div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {book.genre && <span style={{ fontSize: 10, background: 'rgba(232,201,122,0.1)', color: 'var(--gold)', padding: '2px 7px', borderRadius: 6, border: '0.5px solid rgba(232,201,122,0.2)' }}>{book.genre}</span>}
-          {book.formats?.epub && <span style={{ fontSize: 10, background: 'rgba(100,160,255,0.1)', color: '#6aa0ff', padding: '2px 7px', borderRadius: 6 }}>EPUB</span>}
-          {book.formats?.pdf && <span style={{ fontSize: 10, background: 'rgba(255,100,100,0.1)', color: '#ff8080', padding: '2px 7px', borderRadius: 6 }}>PDF</span>}
-          {book.formats?.mp3 && <span style={{ fontSize: 10, background: 'rgba(100,220,150,0.1)', color: '#64dc96', padding: '2px 7px', borderRadius: 6 }}>🎧</span>}
-        </div>
-      </div>
-      <span style={{ fontSize: 20, color: 'var(--dim)', flexShrink: 0 }}>›</span>
-    </div>
-  )
-}
-
-export default function Search() {
-  const [query, setQuery] = useState('')
-  const [genre, setGenre] = useState('all')
-  const [format, setFormat] = useState('all')
-  const [results, setResults] = useState([])
-  const [genres, setGenres] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
-  const inputRef = useRef(null)
-  const navigate = useNavigate()
-  const debounce = useRef(null)
+export default function Search({ onBookSelect, onBack }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [genres, setGenres] = useState([]);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current?.focus()
-    fetchGenres()
-  }, [])
+    inputRef.current?.focus();
+    fetchGenres();
+  }, []);
 
   useEffect(() => {
-    clearTimeout(debounce.current)
-    if (!query.trim() && genre === 'all' && format === 'all') { setResults([]); setSearched(false); return }
-    debounce.current = setTimeout(() => doSearch(), 350)
-    return () => clearTimeout(debounce.current)
-  }, [query, genre, format])
+    const t = setTimeout(() => {
+      if (query.trim().length > 1) doSearch();
+      else if (query.trim().length === 0) setResults([]);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, filter]);
 
   async function fetchGenres() {
-    const { data } = await supabase.from('books').select('genre').not('genre', 'is', null)
-    const unique = [...new Set((data || []).map(b => b.genre).filter(Boolean))].sort()
-    setGenres(unique)
+    const { data } = await supabase.from("books").select("genre").not("genre", "is", null);
+    if (data) {
+      const unique = [...new Set(data.map((b) => b.genre).filter(Boolean))];
+      setGenres(unique);
+    }
   }
 
   async function doSearch() {
-    setLoading(true)
-    let q = supabase.from('books').select('id, title, author, cover_url, genre, formats')
-    if (query.trim()) q = q.or(`title.ilike.%${query.trim()}%,author.ilike.%${query.trim()}%`)
-    if (genre !== 'all') q = q.eq('genre', genre)
-    const { data } = await q.order('title').limit(40)
-    let filtered = data || []
-    if (format !== 'all') filtered = filtered.filter(b => b.formats?.[format] && b.formats[format].length > 4)
-    setResults(filtered)
-    setSearched(true)
-    setLoading(false)
+    setLoading(true);
+    let q = supabase
+      .from("books")
+      .select("id,title,author,cover_url,genre,formats")
+      .or(`title.ilike.%${query}%,author.ilike.%${query}%`)
+      .eq("is_active", true)
+      .limit(30);
+
+    if (filter !== "all" && filter !== "epub" && filter !== "pdf") {
+      q = q.eq("genre", filter);
+    } else if (filter === "epub") {
+      q = q.eq("formats->epub", true);
+    } else if (filter === "pdf") {
+      q = q.eq("formats->pdf", true);
+    }
+
+    const { data } = await q;
+    setResults(data || []);
+    setLoading(false);
   }
 
+  const filters = [
+    { id: "all", label: "Todos" },
+    { id: "epub", label: "EPUB" },
+    { id: "pdf", label: "PDF" },
+    ...genres.slice(0, 6).map((g) => ({ id: g, label: g })),
+  ];
+
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Search bar */}
-      <div style={{ padding: '16px 16px 10px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>🔍</span>
+    <div style={{ minHeight: "100vh", background: "#0f0e0c", color: "#f0ece4", paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c97a", fontSize: 22, cursor: "pointer", padding: 4 }}>←</button>
+        <div style={{ flex: 1, background: "#1e1c18", border: "1px solid #2e2c28", borderRadius: 24, display: "flex", alignItems: "center", gap: 8, padding: "10px 16px" }}>
+          <span style={{ fontSize: 16, opacity: 0.5 }}>🔍</span>
           <input
             ref={inputRef}
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Título, autor..."
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 15, fontFamily: 'var(--font-sans)' }}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por título ou autor..."
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#f0ece4", fontSize: 15, fontFamily: "inherit" }}
           />
-          {query && <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', color: 'var(--dim)', fontSize: 18, cursor: 'pointer', flexShrink: 0 }}>×</button>}
-        </div>
-
-        {/* Format filter */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
-          {FORMATS.map(f => (
-            <button key={f.key} onClick={() => setFormat(f.key)} style={{
-              padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', flexShrink: 0, fontSize: 12, fontFamily: 'var(--font-sans)',
-              background: format === f.key ? 'var(--gold)' : 'var(--surface)',
-              color: format === f.key ? '#0f0e0c' : 'var(--muted)',
-              fontWeight: format === f.key ? 500 : 400
-            }}>{f.label}</button>
-          ))}
-        </div>
-
-        {/* Genre filter */}
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
-          <button onClick={() => setGenre('all')} style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', flexShrink: 0, fontSize: 12, fontFamily: 'var(--font-sans)', background: genre === 'all' ? 'rgba(232,201,122,0.2)' : 'var(--surface)', color: genre === 'all' ? 'var(--gold)' : 'var(--muted)' }}>Todos gêneros</button>
-          {genres.map(g => (
-            <button key={g} onClick={() => setGenre(g)} style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', flexShrink: 0, fontSize: 12, fontFamily: 'var(--font-sans)', background: genre === g ? 'rgba(232,201,122,0.2)' : 'var(--surface)', color: genre === g ? 'var(--gold)' : 'var(--muted)' }}>{g}</button>
-          ))}
+          {query && (
+            <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "#6b6860", cursor: "pointer", fontSize: 18, padding: 0, lineHeight: 1 }}>×</button>
+          )}
         </div>
       </div>
 
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 8, padding: "12px 16px", overflowX: "auto", scrollbarWidth: "none" }}>
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            style={{
+              background: filter === f.id ? "#e8c97a" : "#1e1c18",
+              color: filter === f.id ? "#0f0e0c" : "#a09c94",
+              border: "1px solid " + (filter === f.id ? "#e8c97a" : "#2e2c28"),
+              borderRadius: 16, padding: "6px 14px", fontSize: 12, fontFamily: "inherit",
+              whiteSpace: "nowrap", cursor: "pointer", fontWeight: filter === f.id ? 600 : 400
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Results */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
-            <div style={{ width: 28, height: 28, border: '2px solid var(--border)', borderTop: '2px solid var(--gold)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ padding: "0 16px" }}>
+        {loading && (
+          <div style={{ textAlign: "center", padding: 40, color: "#6b6860" }}>Buscando...</div>
+        )}
+
+        {!loading && query.length > 1 && results.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+            <div style={{ color: "#6b6860", fontSize: 14 }}>Nenhum resultado para "{query}"</div>
           </div>
-        ) : !searched ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--dim)' }}>
+        )}
+
+        {!loading && query.length <= 1 && (
+          <div style={{ textAlign: "center", padding: 40 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-            <div style={{ fontSize: 14 }}>Digite para buscar livros</div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>ou filtre por gênero e formato</div>
+            <div style={{ color: "#6b6860", fontSize: 14 }}>Digite para buscar livros</div>
           </div>
-        ) : results.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--dim)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>😕</div>
-            <div style={{ fontSize: 14 }}>Nenhum livro encontrado</div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>Tente outros filtros</div>
-          </div>
-        ) : (
+        )}
+
+        {results.length > 0 && (
           <>
-            <div style={{ fontSize: 12, color: 'var(--dim)', padding: '10px 0 4px' }}>{results.length} resultado{results.length !== 1 ? 's' : ''}</div>
-            {results.map(book => (
-              <BookRow key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />
-            ))}
+            <div style={{ fontSize: 12, color: "#6b6860", marginBottom: 12 }}>{results.length} resultado{results.length !== 1 ? "s" : ""}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {results.map((book) => (
+                <div
+                  key={book.id}
+                  onClick={() => onBookSelect(book)}
+                  style={{ display: "flex", gap: 12, background: "#1a1815", borderRadius: 12, padding: 12, cursor: "pointer", alignItems: "center" }}
+                >
+                  <img
+                    src={book.cover_url || "https://via.placeholder.com/50x70/1a1815/666?text=📖"}
+                    alt={book.title}
+                    style={{ width: 50, height: 70, objectFit: "cover", borderRadius: 6, flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#f0ece4", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{book.title}</div>
+                    <div style={{ fontSize: 12, color: "#a09c94", marginBottom: 6 }}>{book.author}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {book.genre && <span style={{ background: "#2a2820", color: "#e8c97a", fontSize: 10, padding: "2px 8px", borderRadius: 8 }}>{book.genre}</span>}
+                      {book.formats?.epub && <span style={{ background: "#1a2a1a", color: "#7ec87e", fontSize: 10, padding: "2px 8px", borderRadius: 8 }}>EPUB</span>}
+                      {book.formats?.pdf && <span style={{ background: "#1a1a2a", color: "#7e9ec8", fontSize: 10, padding: "2px 8px", borderRadius: 8 }}>PDF</span>}
+                    </div>
+                  </div>
+                  <span style={{ color: "#3a3830", fontSize: 18 }}>›</span>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
     </div>
-  )
+  );
 }

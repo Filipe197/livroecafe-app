@@ -1,109 +1,190 @@
-import { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { AuthProvider } from './hooks/useAuth.jsx'
-import { useOnlineStatus } from './hooks/useOffline'
-import Home from './pages/Home'
-import Catalog from './pages/Catalog'
-import Explore from './pages/Explore'
-import BookDetail from './pages/BookDetail'
-import Read from './pages/Read'
-import MyList from './pages/MyList'
-import Profile from './pages/Profile'
-import Auth from './pages/Auth'
-import Splash from './pages/Splash'
-import Onboarding from './pages/Onboarding'
-import Clubs from './pages/Clubs'
-import Ranking from './pages/Ranking'
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-const tabs = [
-  { path: '/', label: 'Início' },
-  { path: '/explore', label: 'Explorar' },
-  { path: '/clubs', label: 'Clubes' },
-  { path: '/profile', label: 'Perfil' },
-]
-const hideNavOn = ['/read/', '/auth']
+// Pages
+import Splash from "./pages/Splash";
+import Onboarding from "./pages/Onboarding";
+import Auth from "./pages/Auth";
+import Home from "./pages/Home";
+import Explore from "./pages/Explore";
+import BookDetail from "./pages/BookDetail";
+import Read from "./pages/Read";
+import Profile from "./pages/Profile";
+import MyList from "./pages/MyList";
+import Clubs from "./pages/Clubs";
+import Ranking from "./pages/Ranking";
+import Catalog from "./pages/Catalog";
+import Search from "./pages/Search";
+import ShareQuote from "./pages/ShareQuote";
 
-function HomeIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
-function ExploreIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill={active?'currentColor':'none'}/></svg> }
-function ClubIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4" fill={active?'currentColor':'none'} fillOpacity="0.15"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> }
-function UserIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4" fill={active?'currentColor':'none'} fillOpacity="0.15"/></svg> }
-const icons = [HomeIcon, ExploreIcon, ClubIcon, UserIcon]
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
-function PageTransition({ children }) {
-  const location = useLocation()
-  const [displayed, setDisplayed] = useState(children)
-  const [fading, setFading] = useState(false)
+export default function App() {
+  const [page, setPage] = useState("splash");
+  const [user, setUser] = useState(null);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [readBook, setReadBook] = useState(null);
+  const [shareQuoteData, setShareQuoteData] = useState(null);
+  const [prevPage, setPrevPage] = useState(null);
+
   useEffect(() => {
-    setFading(true)
-    const t = setTimeout(() => { setDisplayed(children); setFading(false) }, 130)
-    return () => clearTimeout(t)
-  }, [location.pathname])
-  return (
-    <div style={{ opacity: fading ? 0 : 1, transform: fading ? 'translateY(5px)' : 'translateY(0)', transition: 'opacity 0.18s ease, transform 0.18s ease', height: '100%' }}>
-      {displayed}
-    </div>
-  )
-}
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-function Shell() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const online = useOnlineStatus()
-  const hideNav = hideNavOn.some(p => location.pathname.startsWith(p))
-  const activeTab = location.pathname === '/' ? '/' :
-    tabs.find(t => t.path !== '/' && location.pathname.startsWith(t.path))?.path || '/'
+  function navigate(to, from) {
+    setPrevPage(from || page);
+    setPage(to);
+  }
+
+  function handleBookSelect(book) {
+    setSelectedBook(book);
+    navigate("bookdetail");
+  }
+
+  function handleReadBook(book) {
+    setReadBook(book);
+    navigate("read");
+  }
+
+  function handleShareQuote(quote, bookTitle, author) {
+    setShareQuoteData({ quote, bookTitle, author });
+  }
+
+  // Bottom nav pages
+  const navPages = ["home", "explore", "mylist", "clubs", "profile"];
+  const navItems = [
+    { id: "home", icon: "🏠", label: "Início" },
+    { id: "explore", icon: "🔭", label: "Explorar" },
+    { id: "mylist", icon: "📚", label: "Minha Lista" },
+    { id: "clubs", icon: "👥", label: "Clubes" },
+    { id: "profile", icon: "👤", label: "Perfil" },
+  ];
+
+  const showNav = navPages.includes(page);
+
+  // Common props passed to all pages
+  const commonProps = {
+    user,
+    supabase,
+    onNavigate: navigate,
+    onBookSelect: handleBookSelect,
+    onReadBook: handleReadBook,
+    onShareQuote: handleShareQuote,
+  };
+
   return (
-    <div className="app-shell">
-      {!online && <div className="offline-banner">📵 Sem conexão — exibindo conteúdo salvo</div>}
-      <div className="page-content" style={{ ...(hideNav ? { paddingBottom: 0 } : {}), ...(!online ? { paddingTop: 32 } : {}) }}>
-        <PageTransition>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/clubs" element={<Clubs />} />
-            <Route path="/ranking" element={<Ranking />} />
-            <Route path="/book/:id" element={<BookDetail />} />
-            <Route path="/read/:id" element={<Read />} />
-            <Route path="/mylist" element={<MyList />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/auth" element={<Auth />} />
-          </Routes>
-        </PageTransition>
-      </div>
-      {!hideNav && (
-        <nav className="bottom-nav">
-          {tabs.map((tab, i) => {
-            const active = activeTab === tab.path
-            const Icon = icons[i]
-            return (
-              <button key={tab.path} className={'nav-item' + (active ? ' active' : '')} onClick={() => navigate(tab.path)}>
-                <Icon active={active} />
-                {tab.label}
-              </button>
-            )
-          })}
+    <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", position: "relative", background: "#0f0e0c" }}>
+      {/* Share Quote Overlay */}
+      {shareQuoteData && (
+        <ShareQuote
+          quote={shareQuoteData.quote}
+          bookTitle={shareQuoteData.bookTitle}
+          author={shareQuoteData.author}
+          onClose={() => setShareQuoteData(null)}
+        />
+      )}
+
+      {/* Pages */}
+      {page === "splash" && (
+        <Splash onDone={() => {
+          const seen = localStorage.getItem("lc_onboarding_done");
+          navigate(seen ? "auth" : "onboarding");
+        }} />
+      )}
+
+      {page === "onboarding" && (
+        <Onboarding onDone={() => {
+          localStorage.setItem("lc_onboarding_done", "1");
+          navigate("auth");
+        }} />
+      )}
+
+      {page === "auth" && (
+        <Auth supabase={supabase} onAuth={(u) => { setUser(u); navigate("home"); }} />
+      )}
+
+      {page === "home" && (
+        <Home {...commonProps} onSearchOpen={() => navigate("search", "home")} />
+      )}
+
+      {page === "explore" && (
+        <Explore {...commonProps} />
+      )}
+
+      {page === "mylist" && (
+        <MyList {...commonProps} />
+      )}
+
+      {page === "clubs" && (
+        <Clubs {...commonProps} />
+      )}
+
+      {page === "profile" && (
+        <Profile {...commonProps} onLogout={() => { supabase.auth.signOut(); navigate("auth"); }} />
+      )}
+
+      {page === "ranking" && (
+        <Ranking {...commonProps} onBack={() => navigate(prevPage || "home")} />
+      )}
+
+      {page === "catalog" && (
+        <Catalog {...commonProps} onBack={() => navigate(prevPage || "home")} />
+      )}
+
+      {page === "search" && (
+        <Search
+          {...commonProps}
+          onBack={() => navigate(prevPage || "home")}
+        />
+      )}
+
+      {page === "bookdetail" && selectedBook && (
+        <BookDetail
+          {...commonProps}
+          book={selectedBook}
+          onBack={() => navigate(prevPage || "explore")}
+        />
+      )}
+
+      {page === "read" && readBook && (
+        <Read
+          {...commonProps}
+          book={readBook}
+          onBack={() => navigate(prevPage || "bookdetail")}
+        />
+      )}
+
+      {/* Bottom Navigation */}
+      {showNav && (
+        <nav style={{
+          position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
+          width: "100%", maxWidth: 480, background: "rgba(15,14,12,0.95)",
+          backdropFilter: "blur(12px)", borderTop: "1px solid #2a2820",
+          display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)"
+        }}>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => navigate(item.id)}
+              style={{
+                flex: 1, padding: "10px 4px 8px", background: "none", border: "none",
+                cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2
+              }}
+            >
+              <span style={{ fontSize: page === item.id ? 22 : 20, filter: page === item.id ? "none" : "grayscale(1) opacity(0.5)" }}>{item.icon}</span>
+              <span style={{ fontSize: 10, color: page === item.id ? "#e8c97a" : "#6b6860", fontFamily: "DM Sans, sans-serif" }}>{item.label}</span>
+            </button>
+          ))}
         </nav>
       )}
     </div>
-  )
-}
-
-export default function App() {
-  const [showSplash, setShowSplash] = useState(true)
-  const [showOnboarding, setShowOnboarding] = useState(false)
-
-  function handleSplashDone() {
-    setShowSplash(false)
-    const done = localStorage.getItem('onboarding_done')
-    if (!done) setShowOnboarding(true)
-  }
-
-  return (
-    <AuthProvider>
-      {showSplash && <Splash onDone={handleSplashDone} />}
-      {!showSplash && showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
-      <Shell />
-    </AuthProvider>
-  )
+  );
 }
