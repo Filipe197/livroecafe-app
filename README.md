@@ -1,16 +1,64 @@
-# React + Vite
+# ☕ Livro & Café — PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App web progressivo (PWA) para a plataforma Livro & Café.
 
-Currently, two official plugins are available:
+## Como rodar localmente
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Como fazer build para produção
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run build
+```
+Os arquivos prontos ficam na pasta `dist/`.
 
-## Expanding the ESLint configuration
+## Como hospedar gratuitamente
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Opção 1 — Netlify (recomendado, mais fácil)
+1. Crie conta em https://netlify.com
+2. Arraste a pasta `dist/` para o painel do Netlify
+3. Pronto! Seu app estará online em segundos
+
+### Opção 2 — Vercel
+1. Crie conta em https://vercel.com
+2. Conecte seu repositório GitHub
+3. Defina: Build Command = `npm run build`, Output = `dist`
+4. Deploy automático a cada push
+
+## Como instalar como app no celular
+
+### Android (Chrome)
+1. Acesse o site no Chrome
+2. Toque nos 3 pontinhos (menu)
+3. "Adicionar à tela inicial"
+
+### iPhone (Safari)
+1. Acesse o site no Safari
+2. Toque no ícone de compartilhar (quadrado com seta)
+3. "Adicionar à Tela de Início"
+
+## Estrutura do projeto
+
+```
+src/
+  pages/
+    Home.jsx        — Tela inicial
+    Catalog.jsx     — Catálogo de livros
+    BookDetail.jsx  — Detalhes do livro
+    Read.jsx        — Leitor de livros
+    Profile.jsx     — Perfil do usuário
+  data/
+    books.js        — Dados dos livros (substituir pela API)
+  App.jsx           — Roteamento e nav bar
+  index.css         — Estilos globais
+```
+
+## Próximos passos sugeridos
+- Conectar a uma API real de livros (livroecafe.com.br)
+- Adicionar autenticação de usuário
+- Implementar sistema de favoritos com localStorage
+- Integrar leitor de e-books (epub.js)
