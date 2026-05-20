@@ -3,15 +3,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { useAllReadingProgress } from '../hooks/useFavorites'
 import { useBooks } from '../hooks/useBooks'
 import { useState } from 'react'
-
-function Spinner() {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
-      <div style={{ width: 28, height: 28, border: '2px solid var(--border)', borderTop: '2px solid var(--gold)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
-}
+import { SkeletonRow } from '../components/SkeletonBook'
 
 function BookCard({ book, onClick }) {
   return (
@@ -24,7 +16,7 @@ function BookCard({ book, onClick }) {
           <span style={{ position: 'absolute', top: 6, left: 6, background: '#d45a3a', color: '#fff', fontSize: 8, fontWeight: 500, padding: '2px 6px', borderRadius: 6 }}>NOVO</span>
         )}
       </div>
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{book.title}</div>
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--text)' }}>{book.title}</div>
       <div style={{ fontSize: 10, color: 'var(--dim)' }}>{book.author}</div>
     </div>
   )
@@ -59,19 +51,12 @@ export default function Explore() {
   return (
     <div className="fade-in">
       <div style={{ padding: '20px 16px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: 0 }}>Explorar</h1>
-        </div>
-
-        {/* Search bar — clicável, leva para /search */}
-        <div
-          onClick={() => navigate('/search')}
-          style={{
-            marginTop: 12, display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--surface)', border: '0.5px solid var(--border)',
-            borderRadius: 24, padding: '10px 16px', cursor: 'pointer'
-          }}
-        >
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 4, color: 'var(--text)' }}>Explorar</h1>
+        <div onClick={() => navigate('/search')} style={{
+          marginTop: 12, display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--surface)', border: '0.5px solid var(--border)',
+          borderRadius: 24, padding: '10px 16px', cursor: 'pointer'
+        }}>
           <span style={{ fontSize: 15, opacity: 0.5 }}>🔍</span>
           <span style={{ fontSize: 14, color: 'var(--dim)' }}>Buscar por título, autor ou gênero...</span>
         </div>
@@ -79,23 +64,27 @@ export default function Explore() {
 
       {/* Format filter */}
       <div style={{ display: 'flex', gap: 8, padding: '8px 16px 12px' }}>
-        {[
-          { id: 'todos', label: '📚 Todos' },
-          { id: 'epub', label: '📖 EPUB' },
-          { id: 'pdf', label: '📄 PDF' },
-        ].map(f => (
+        {[{ id: 'todos', label: '📚 Todos' }, { id: 'epub', label: '📖 EPUB' }, { id: 'pdf', label: '📄 PDF' }].map(f => (
           <button key={f.id} onClick={() => setFormatFilter(f.id)} style={{
             background: formatFilter === f.id ? 'var(--gold)' : 'var(--surface)',
             color: formatFilter === f.id ? '#0f0e0c' : 'var(--muted)',
             fontWeight: formatFilter === f.id ? 500 : 400,
             border: `0.5px solid ${formatFilter === f.id ? 'var(--gold)' : 'var(--border)'}`,
-            borderRadius: 16, padding: '7px 16px', fontSize: 12, cursor: 'pointer',
-            fontFamily: 'inherit'
+            borderRadius: 16, padding: '7px 16px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit'
           }}>{f.label}</button>
         ))}
       </div>
 
-      {loading ? <Spinner /> : (
+      {loading ? (
+        <>
+          <p className="section-label">⭐ Em destaque</p>
+          <SkeletonRow count={4} />
+          <p className="section-label">Ficção</p>
+          <SkeletonRow count={4} />
+          <p className="section-label">Não-ficção</p>
+          <SkeletonRow count={4} />
+        </>
+      ) : (
         <>
           {formatFilter !== 'todos' && (
             <>
@@ -104,7 +93,7 @@ export default function Explore() {
                 {formatFiltered.map(book => <BookCard key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />)}
               </div>
               {formatFiltered.length === 0 && (
-                <div style={{ padding: '16px 16px', color: 'var(--dim)', fontSize: 13 }}>Nenhum livro encontrado com esse formato</div>
+                <div style={{ padding: '16px', color: 'var(--dim)', fontSize: 13 }}>Nenhum livro encontrado com esse formato</div>
               )}
             </>
           )}
@@ -113,14 +102,10 @@ export default function Explore() {
             <>
               {user && (
                 <>
-                  <p className="section-label">
-                    {readGenres.length > 0 ? '🎯 Recomendados para você' : '⭐ Em destaque'}
-                  </p>
+                  <p className="section-label">{readGenres.length > 0 ? '🎯 Recomendados para você' : '⭐ Em destaque'}</p>
                   {readGenres.length > 0 && (
                     <div style={{ padding: '0 16px 4px', marginBottom: 4 }}>
-                      <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 8 }}>
-                        Baseado nos seus interesses: {readGenres.join(', ')}
-                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 8 }}>Baseado nos seus interesses: {readGenres.join(', ')}</div>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10, padding: '0 16px 4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -130,7 +115,6 @@ export default function Explore() {
                   </div>
                 </>
               )}
-
               {!user && (
                 <>
                   <p className="section-label">⭐ Mais populares</p>
@@ -141,14 +125,11 @@ export default function Explore() {
                   </div>
                 </>
               )}
-
               {Object.entries(byGenre).map(([genre, books]) => (
                 <div key={genre}>
                   <p className="section-label">{genre}</p>
                   <div style={{ display: 'flex', gap: 10, padding: '0 16px 4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-                    {books.slice(0, 8).map(book => (
-                      <BookCard key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />
-                    ))}
+                    {books.slice(0, 8).map(book => <BookCard key={book.id} book={book} onClick={() => navigate(`/book/${book.id}`)} />)}
                   </div>
                 </div>
               ))}

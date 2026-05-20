@@ -15,6 +15,18 @@
   --nav-h: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* TEMA CLARO */
+[data-theme="light"] {
+  --bg: #f5f2ec;
+  --surface: #ede9e0;
+  --surface2: #e4dfd5;
+  --border: #d4cfc5;
+  --text: #1a1815;
+  --muted: #6b6456;
+  --dim: #9a9288;
+}
+
 html, body, #root {
   height: 100%;
   background: var(--bg);
@@ -24,6 +36,7 @@ html, body, #root {
   overflow-x: hidden;
   overflow-y: auto;
 }
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -32,6 +45,7 @@ html, body, #root {
   margin: 0 auto;
   background: var(--bg);
 }
+
 .page-content {
   flex: 1;
   overflow-y: auto;
@@ -40,14 +54,6 @@ html, body, #root {
   -webkit-overflow-scrolling: touch;
 }
 .page-content::-webkit-scrollbar { display: none; }
-
-/* Pages que não usam .page-content precisam de padding no bottom */
-.fade-in {
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 8px);
-  min-height: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
 
 .bottom-nav {
   position: fixed;
@@ -63,7 +69,13 @@ html, body, #root {
   align-items: flex-start;
   padding-top: 8px;
   z-index: 100;
+  backdrop-filter: blur(12px);
 }
+
+[data-theme="light"] .bottom-nav {
+  background: rgba(245,242,236,0.96);
+}
+
 .nav-item {
   flex: 1;
   display: flex;
@@ -82,6 +94,7 @@ html, body, #root {
 }
 .nav-item.active { color: var(--gold); }
 .nav-item svg { width: 22px; height: 22px; stroke-width: 1.6; }
+
 .section-label {
   font-size: 11px;
   font-weight: 500;
@@ -91,6 +104,7 @@ html, body, #root {
   padding: 0 16px;
   margin: 16px 0 10px;
 }
+
 .tag {
   font-size: 10px;
   background: var(--surface2);
@@ -99,13 +113,51 @@ html, body, #root {
   border-radius: 8px;
   white-space: nowrap;
 }
+
 .stars { color: var(--gold); font-size: 11px; }
 button { cursor: pointer; font-family: var(--font-sans); }
 img { display: block; }
+
+/* ANIMAÇÕES DE TRANSIÇÃO DE PÁGINA */
+.page-enter {
+  animation: pageEnter 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.page-back {
+  animation: pageBack 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pageBack {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* fade-in para páginas sem direção */
+.fade-in {
+  animation: fadeIn 0.2s ease both;
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 8px);
+  min-height: 100%;
+  -webkit-overflow-scrolling: touch;
+}
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+
+/* SKELETON LOADING */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Offline banner */
 .offline-banner {
   position: fixed;
