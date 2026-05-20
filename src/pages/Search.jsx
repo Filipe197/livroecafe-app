@@ -38,7 +38,7 @@ export default function Search() {
       .from("books")
       .select("id,title,author,cover_url,genre,formats")
       .or(`title.ilike.%${query}%,author.ilike.%${query}%`)
-      .eq("is_active", true)
+      
       .limit(30);
 
     if (filter !== "all" && filter !== "epub" && filter !== "pdf") {
