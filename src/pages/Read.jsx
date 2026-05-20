@@ -303,7 +303,7 @@ export default function Read() {
   )
 
   if (mode === 'epub') return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: currentTheme.bg, color: currentTheme.text }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: currentTheme.bg, color: currentTheme.text, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
         <button onClick={() => { if (bookRef.current) bookRef.current.destroy(); setMode('choose') }} style={{ background: 'none', border: 'none', fontSize: 24, color: currentTheme.text, opacity: 0.6, lineHeight: 1, padding: 0, cursor: 'pointer' }}>‹</button>
         <div style={{ textAlign: 'center' }}>
@@ -341,7 +341,7 @@ export default function Read() {
           }
         </div>
       )}
-      <div ref={viewerRef} style={{ flex: 1, overflow: 'hidden', background: currentTheme.bg }} onMouseUp={handleTextSelection} />
+      <div ref={viewerRef} style={{ flex: 1, overflow: 'hidden', background: currentTheme.bg, minHeight: 0 }} onMouseUp={handleTextSelection} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
         <button onClick={() => renditionRef.current?.prev()} style={{ background: 'rgba(128,128,128,0.15)', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: currentTheme.text, cursor: 'pointer' }}>‹</button>
         <button onClick={() => sendToKindle('epub')} disabled={sharing} style={{ background: 'none', border: `0.5px solid #e8c97a`, borderRadius: 10, padding: '6px 12px', fontSize: 11, color: '#e8c97a', cursor: 'pointer' }}>{sharing ? '...' : '📱 Kindle'}</button>
