@@ -97,13 +97,33 @@ export default function Read() {
     }
   }, [user, id])
 
-  // Apply font to epub
+  // Apply theme+font to epub rendition
+  function applyEpubTheme(rendition, themeKey, fontKey, fs, lh) {
+    const t = THEMES[themeKey]
+    const f = FONTS[fontKey]
+    rendition.themes.register('custom', {
+      'body': {
+        'background': t.bg + ' !important',
+        'color': t.text + ' !important',
+        'font-family': f.css + ' !important',
+        'font-size': fs + 'px !important',
+        'line-height': lh + ' !important',
+        'padding': '16px !important',
+      },
+      'p': { 'color': t.text + ' !important' },
+      'span': { 'color': t.text + ' !important' },
+      'div': { 'color': t.text + ' !important' },
+      'h1,h2,h3,h4': { 'color': t.text + ' !important' },
+      'a': { 'color': '#e8c97a !important' },
+    })
+    rendition.themes.select('custom')
+  }
+
   useEffect(() => {
     if (renditionRef.current) {
-      renditionRef.current.themes.override('font-family', FONTS[font].css)
-      renditionRef.current.themes.override('line-height', String(lineHeight))
+      applyEpubTheme(renditionRef.current, theme, font, fontSize, lineHeight)
     }
-  }, [font, lineHeight])
+  }, [font, lineHeight, theme, fontSize])
 
   async function fetchHighlights() {
     const { data } = await supabase.from('highlights').select('*').eq('user_id', user.id).eq('book_id', id).order('created_at')
@@ -177,11 +197,9 @@ export default function Read() {
         if (!viewerRef.current) return
         const rendition = epubBook.renderTo(viewerRef.current, { width: '100%', height: '100%', flow: 'paginated' })
         renditionRef.current = rendition
+        applyEpubTheme(rendition, theme, font, fontSize, lineHeight)
         if (progress?.current_position) rendition.display(progress.current_position)
         else rendition.display()
-        rendition.themes.fontSize(`${fontSize}px`)
-        rendition.themes.override('font-family', FONTS[font].css)
-        rendition.themes.override('line-height', String(lineHeight))
         rendition.on('relocated', (loc) => {
           const pct = Math.round((epubBook.locations.percentageFromCfi(loc.start.cfi) || 0) * 100)
           clearTimeout(saveTimer.current)
@@ -233,38 +251,33 @@ export default function Read() {
 
   const currentTheme = THEMES[theme]
 
-  // Controls panel (shared between epub/pdf)
   const ControlsPanel = () => (
-    <div style={{ padding: '10px 16px', borderBottom: `0.5px solid ${currentTheme.border}`, background: theme === 'dark' || theme === 'night' || theme === 'forest' ? 'rgba(0,0,0,0.3)' : '#ede8de', flexShrink: 0 }}>
-      {/* Font size */}
+    <div style={{ padding: '10px 16px', borderBottom: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 11, color: currentTheme.text, opacity: 0.6, width: 40 }}>Fonte</span>
-        <button onClick={() => { const s = Math.max(12, fontSize-1); setFontSize(s); renditionRef.current?.themes.fontSize(`${s}px`) }} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16 }}>−</button>
+        <button onClick={() => setFontSize(s => Math.max(12, s-1))} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16, cursor: 'pointer' }}>−</button>
         <span style={{ fontSize: 13, color: currentTheme.text, minWidth: 24, textAlign: 'center' }}>{fontSize}</span>
-        <button onClick={() => { const s = Math.min(26, fontSize+1); setFontSize(s); renditionRef.current?.themes.fontSize(`${s}px`) }} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16 }}>+</button>
+        <button onClick={() => setFontSize(s => Math.min(26, s+1))} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16, cursor: 'pointer' }}>+</button>
         <span style={{ fontSize: 11, color: currentTheme.text, opacity: 0.6, marginLeft: 8, width: 50 }}>Linha</span>
-        <button onClick={() => { const lh = Math.max(1.2, +(lineHeight - 0.1).toFixed(1)); setLineHeight(lh); renditionRef.current?.themes.override('line-height', String(lh)) }} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16 }}>−</button>
+        <button onClick={() => setLineHeight(lh => Math.max(1.2, +(lh - 0.1).toFixed(1)))} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16, cursor: 'pointer' }}>−</button>
         <span style={{ fontSize: 12, color: currentTheme.text, minWidth: 28, textAlign: 'center' }}>{lineHeight}</span>
-        <button onClick={() => { const lh = Math.min(2.5, +(lineHeight + 0.1).toFixed(1)); setLineHeight(lh); renditionRef.current?.themes.override('line-height', String(lh)) }} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16 }}>+</button>
+        <button onClick={() => setLineHeight(lh => Math.min(2.5, +(lh + 0.1).toFixed(1)))} style={{ width: 28, height: 28, background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 6, color: currentTheme.text, fontSize: 16, cursor: 'pointer' }}>+</button>
       </div>
-      {/* Font family */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <span style={{ fontSize: 11, color: currentTheme.text, opacity: 0.6, width: 40, flexShrink: 0, paddingTop: 4 }}>Tipo</span>
         {Object.entries(FONTS).map(([key, f]) => (
-          <button key={key} onClick={() => setFont(key)} style={{ flex: 1, padding: '5px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', background: font === key ? 'var(--gold)' : 'rgba(128,128,128,0.2)', color: font === key ? '#0f0e0c' : currentTheme.text, fontSize: 12, fontFamily: f.css }}>{f.label}</button>
+          <button key={key} onClick={() => setFont(key)} style={{ flex: 1, padding: '5px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', background: font === key ? '#e8c97a' : 'rgba(128,128,128,0.2)', color: font === key ? '#0f0e0c' : currentTheme.text, fontSize: 12, fontFamily: f.css }}>{f.label}</button>
         ))}
       </div>
-      {/* Themes */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: currentTheme.text, opacity: 0.6, width: 40, flexShrink: 0, paddingTop: 4 }}>Tema</span>
         {Object.entries(THEMES).map(([key, t]) => (
-          <button key={key} onClick={() => setTheme(key)} style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid ${theme === key ? 'var(--gold)' : 'transparent'}`, cursor: 'pointer', background: t.bg, color: t.text, fontSize: 10, fontWeight: theme === key ? 600 : 400 }}>{t.label}</button>
+          <button key={key} onClick={() => setTheme(key)} style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid ${theme === key ? '#e8c97a' : 'transparent'}`, cursor: 'pointer', background: t.bg, color: t.text, fontSize: 10, fontWeight: theme === key ? 600 : 400 }}>{t.label}</button>
         ))}
       </div>
     </div>
   )
 
-  // ── AUDIO PLAYER ──
   if (mode === 'audio') return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
@@ -273,7 +286,7 @@ export default function Read() {
         <div style={{ width: 24 }} />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <img src={book?.cover_url} alt={book?.title} style={{ width: 180, height: 258, objectFit: 'cover', borderRadius: 12, marginBottom: 28, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} onError={e => { e.target.src = 'https://placehold.co/180x258/1a1916/e8c97a?text=📚' }} />
+        <img src={book?.cover_url} alt={book?.title} style={{ width: 180, height: 258, objectFit: 'cover', borderRadius: 12, marginBottom: 28, boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} onError={e => { e.target.src = 'https://placehold.co/180x258/1a1916/e8c97a?text=📖' }} />
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, textAlign: 'center', marginBottom: 6 }}>{book?.title}</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 28 }}>{book?.author}</p>
         <audio ref={audioRef} src={mp3Url} style={{ width: '100%', marginBottom: 16 }} controls onPlay={() => { if (audioRef.current) audioRef.current.playbackRate = audioSpeed }} />
@@ -289,19 +302,18 @@ export default function Read() {
     </div>
   )
 
-  // ── EPUB READER ──
   if (mode === 'epub') return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: currentTheme.bg, color: currentTheme.text }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `0.5px solid ${currentTheme.border}`, flexShrink: 0 }}>
-        <button onClick={() => { if (bookRef.current) bookRef.current.destroy(); setMode('choose') }} style={{ background: 'none', border: 'none', fontSize: 24, color: currentTheme.text, opacity: 0.6, lineHeight: 1, padding: 0 }}>‹</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
+        <button onClick={() => { if (bookRef.current) bookRef.current.destroy(); setMode('choose') }} style={{ background: 'none', border: 'none', fontSize: 24, color: currentTheme.text, opacity: 0.6, lineHeight: 1, padding: 0, cursor: 'pointer' }}>‹</button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: FONTS[font].css, fontSize: 12, color: currentTheme.text }}>{book.title}</div>
-          {progress && <div style={{ fontSize: 10, color: 'var(--gold)' }}>{progress.progress_percent}% lido</div>}
+          {progress && <div style={{ fontSize: 10, color: '#e8c97a' }}>{progress.progress_percent}% lido</div>}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={addBookmark} title="Marcar página" style={{ background: 'none', border: 'none', fontSize: 16, color: currentTheme.text, opacity: 0.7, cursor: 'pointer' }}>🔖</button>
-          <button onClick={() => setShowHighlights(s => !s)} style={{ background: 'none', border: 'none', fontSize: 14, color: currentTheme.text, opacity: 0.7, cursor: 'pointer' }}>✨{highlights.length > 0 && ` ${highlights.length}`}</button>
-          <button onClick={() => setShowControls(p => !p)} style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 500, color: currentTheme.text, opacity: 0.7 }}>Aa</button>
+          <button onClick={() => setShowHighlights(s => !s)} style={{ background: 'none', border: 'none', fontSize: 14, color: currentTheme.text, opacity: 0.7, cursor: 'pointer' }}>✏{highlights.length > 0 && ` ${highlights.length}`}</button>
+          <button onClick={() => setShowControls(p => !p)} style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 500, color: currentTheme.text, opacity: 0.7, cursor: 'pointer' }}>Aa</button>
         </div>
       </div>
       {showControls && <ControlsPanel />}
@@ -315,7 +327,7 @@ export default function Read() {
         </div>
       )}
       {showHighlights && (
-        <div style={{ maxHeight: 180, overflowY: 'auto', borderBottom: `0.5px solid ${currentTheme.border}`, flexShrink: 0 }}>
+        <div style={{ maxHeight: 180, overflowY: 'auto', borderBottom: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
           <div style={{ padding: '8px 16px 4px', fontSize: 11, color: currentTheme.text, opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Citações ({highlights.length})</div>
           {highlights.length === 0
             ? <div style={{ padding: '8px 16px', fontSize: 12, color: currentTheme.text, opacity: 0.4 }}>Selecione um texto para grifar</div>
@@ -329,53 +341,51 @@ export default function Read() {
           }
         </div>
       )}
-      <div ref={viewerRef} style={{ flex: 1, overflow: 'hidden' }} onMouseUp={handleTextSelection} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: `0.5px solid ${currentTheme.border}`, flexShrink: 0 }}>
-        <button onClick={() => renditionRef.current?.prev()} style={{ background: 'rgba(128,128,128,0.15)', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: currentTheme.text }}>‹</button>
-        <button onClick={() => sendToKindle('epub')} disabled={sharing} style={{ background: 'none', border: `0.5px solid var(--gold)`, borderRadius: 10, padding: '6px 12px', fontSize: 11, color: 'var(--gold)' }}>{sharing ? '...' : '📲 Kindle'}</button>
-        <button onClick={() => renditionRef.current?.next()} style={{ background: 'rgba(128,128,128,0.15)', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: currentTheme.text }}>›</button>
+      <div ref={viewerRef} style={{ flex: 1, overflow: 'hidden', background: currentTheme.bg }} onMouseUp={handleTextSelection} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: `0.5px solid ${currentTheme.border}`, background: currentTheme.bg, flexShrink: 0 }}>
+        <button onClick={() => renditionRef.current?.prev()} style={{ background: 'rgba(128,128,128,0.15)', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: currentTheme.text, cursor: 'pointer' }}>‹</button>
+        <button onClick={() => sendToKindle('epub')} disabled={sharing} style={{ background: 'none', border: `0.5px solid #e8c97a`, borderRadius: 10, padding: '6px 12px', fontSize: 11, color: '#e8c97a', cursor: 'pointer' }}>{sharing ? '...' : '📱 Kindle'}</button>
+        <button onClick={() => renditionRef.current?.next()} style={{ background: 'rgba(128,128,128,0.15)', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: currentTheme.text, cursor: 'pointer' }}>›</button>
       </div>
     </div>
   )
 
-  // ── PDF READER ──
   if (mode === 'pdf') return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#2a2a2a' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '0.5px solid #444', flexShrink: 0, background: '#1e1e1e' }}>
-        <button onClick={() => setMode('choose')} style={{ background: 'none', border: 'none', fontSize: 24, color: '#ccc', lineHeight: 1, padding: 0 }}>‹</button>
+        <button onClick={() => setMode('choose')} style={{ background: 'none', border: 'none', fontSize: 24, color: '#ccc', lineHeight: 1, padding: 0, cursor: 'pointer' }}>‹</button>
         <div style={{ fontSize: 12, color: '#aaa' }}>Página {pdfPage} / {pdfTotal}</div>
-        <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ background: 'none', border: '0.5px solid var(--gold)', borderRadius: 8, padding: '5px 10px', fontSize: 11, color: 'var(--gold)' }}>{sharing ? '...' : '📲 Kindle'}</button>
+        <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ background: 'none', border: '0.5px solid #e8c97a', borderRadius: 8, padding: '5px 10px', fontSize: 11, color: '#e8c97a', cursor: 'pointer' }}>{sharing ? '...' : '📱 Kindle'}</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }} onMouseUp={handleTextSelection}>
         <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto', maxWidth: '100%' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', borderTop: '0.5px solid #444', background: '#1e1e1e', flexShrink: 0 }}>
-        <button onClick={() => setPdfPage(p => Math.max(1, p-1))} disabled={pdfPage <= 1} style={{ background: '#333', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: '#ccc', opacity: pdfPage <= 1 ? 0.3 : 1 }}>‹</button>
+        <button onClick={() => setPdfPage(p => Math.max(1, p-1))} disabled={pdfPage <= 1} style={{ background: '#333', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: '#ccc', opacity: pdfPage <= 1 ? 0.3 : 1, cursor: 'pointer' }}>‹</button>
         <div style={{ display: 'flex', gap: 4 }}>
           {[...Array(Math.min(5, pdfTotal))].map((_, i) => {
             const p = Math.max(1, Math.min(pdfTotal - 4, pdfPage - 2)) + i
-            return <button key={p} onClick={() => setPdfPage(p)} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: p === pdfPage ? 'var(--gold)' : '#333', color: p === pdfPage ? '#0f0e0c' : '#aaa', fontSize: 11 }}>{p}</button>
+            return <button key={p} onClick={() => setPdfPage(p)} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: p === pdfPage ? '#e8c97a' : '#333', color: p === pdfPage ? '#0f0e0c' : '#aaa', fontSize: 11, cursor: 'pointer' }}>{p}</button>
           })}
         </div>
-        <button onClick={() => setPdfPage(p => Math.min(pdfTotal, p+1))} disabled={pdfPage >= pdfTotal} style={{ background: '#333', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: '#ccc', opacity: pdfPage >= pdfTotal ? 0.3 : 1 }}>›</button>
+        <button onClick={() => setPdfPage(p => Math.min(pdfTotal, p+1))} disabled={pdfPage >= pdfTotal} style={{ background: '#333', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: '#ccc', opacity: pdfPage >= pdfTotal ? 0.3 : 1, cursor: 'pointer' }}>›</button>
       </div>
     </div>
   )
 
   if (mode === 'loading') return <Spinner label="Carregando arquivo..." />
 
-  // ── CHOOSE MODE ──
-  const previewPercent = 20 // non-subscribers see 20%
+  const previewPercent = 20
   const isLocked = !user && (progress?.progress_percent || 0) >= previewPercent
 
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 24, lineHeight: 1, padding: 0 }}>‹</button>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 24, lineHeight: 1, padding: 0, cursor: 'pointer' }}>‹</button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14 }}>{book?.title}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {user && bookmarks.length > 0 && <button onClick={() => setShowBookmarks(s => !s)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>🔖 {bookmarks.length}</button>}
-          {user && highlights.length > 0 && <button onClick={() => setShowHighlights(s => !s)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>✨ {highlights.length}</button>}
+          {user && highlights.length > 0 && <button onClick={() => setShowHighlights(s => !s)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>✏ {highlights.length}</button>}
         </div>
       </div>
 
@@ -406,7 +416,7 @@ export default function Read() {
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 24px 48px' }}>
-        <img src={book?.cover_url} alt={book?.title} style={{ width: 110, height: 158, objectFit: 'cover', borderRadius: 10, marginBottom: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }} onError={e => { e.target.src = 'https://placehold.co/110x158/1a1916/e8c97a?text=📚' }} />
+        <img src={book?.cover_url} alt={book?.title} style={{ width: 110, height: 158, objectFit: 'cover', borderRadius: 10, marginBottom: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }} onError={e => { e.target.src = 'https://placehold.co/110x158/1a1916/e8c97a?text=📖' }} />
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, textAlign: 'center', marginBottom: 4 }}>{book?.title}</h2>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>{book?.author}</p>
 
@@ -423,16 +433,14 @@ export default function Read() {
 
         {epubError && <div style={{ width: '100%', background: 'rgba(212,90,58,0.1)', border: '0.5px solid rgba(212,90,58,0.3)', borderRadius: 10, padding: 12, fontSize: 13, color: '#d45a3a', marginBottom: 16, textAlign: 'center' }}>{epubError}</div>}
 
-        {/* Preview paywall */}
         {isLocked ? (
           <div style={{ width: '100%', background: 'rgba(232,201,122,0.08)', border: '1px solid rgba(232,201,122,0.3)', borderRadius: 12, padding: 20, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>🔒</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, marginBottom: 8 }}>Preview esgotado</div>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>
-              Você leu os primeiros {previewPercent}% gratuitamente.<br />
-              Assine para continuar lendo!
+              Você leu os primeiros {previewPercent}% gratuitamente.<br />Assine para continuar lendo!
             </div>
-            <button onClick={() => navigate('/auth')} style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 15 }}>
+            <button onClick={() => navigate('/auth')} style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}>
               Criar conta e assinar
             </button>
           </div>
@@ -445,24 +453,24 @@ export default function Read() {
             )}
             {hasEpub && (
               <>
-                <button onClick={openEpub} style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 14 }}>
+                <button onClick={openEpub} style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
                   {epubIsSupabase ? (progress?.progress_percent > 0 ? '▶ Continuar (EPUB)' : '📖 Ler EPUB no app') : '📖 Ler no Google Drive'}
                 </button>
-                <button onClick={() => sendToKindle('epub')} disabled={sharing} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13 }}>
-                  {sharing ? '⏳ Preparando...' : '📲 Enviar para Kindle / outro app'}
+                <button onClick={() => sendToKindle('epub')} disabled={sharing} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>
+                  {sharing ? '⏳ Preparando...' : '📱 Enviar para Kindle / outro app'}
                 </button>
               </>
             )}
             {hasPdf && (
               <>
-                <button onClick={openPdf} style={{ width: '100%', background: hasEpub ? 'var(--surface2)' : 'var(--gold)', color: hasEpub ? 'var(--text)' : '#0f0e0c', border: `0.5px solid ${hasEpub ? 'var(--border)' : 'transparent'}`, borderRadius: 12, padding: '12px 0', fontSize: 13 }}>📄 Ler PDF no app</button>
-                <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13 }}>
-                  {sharing ? '⏳ Preparando...' : '📲 Enviar PDF para Kindle / outro app'}
+                <button onClick={openPdf} style={{ width: '100%', background: hasEpub ? 'var(--surface2)' : 'var(--gold)', color: hasEpub ? 'var(--text)' : '#0f0e0c', border: `0.5px solid ${hasEpub ? 'var(--border)' : 'transparent'}`, borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>📄 Ler PDF no app</button>
+                <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>
+                  {sharing ? '⏳ Preparando...' : '📱 Enviar PDF para Kindle / outro app'}
                 </button>
               </>
             )}
             {hasMp3 && (
-              <button onClick={() => setMode('audio')} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13 }}>
+              <button onClick={() => setMode('audio')} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>
                 🎧 Ouvir audiolivro
               </button>
             )}
