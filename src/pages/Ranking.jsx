@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth.jsx'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const AVATARS = { coffee:'☕',book:'📚',moon:'🌙',sun:'☀️',cat:'🐱',owl:'🦉',star:'⭐',fox:'🦊',dragon:'🐉',unicorn:'🦄',robot:'🤖',wizard:'🧙' }
@@ -16,32 +17,19 @@ function Spinner() {
 
 export default function Ranking() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [ranking, setRanking] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('month')
 
-  useEffect(() => { fetchRanking() }, [tab])
+  useEffect(() => { fetchRanking() }, [])
 
   async function fetchRanking() {
     setLoading(true)
-    try {
-      const { data } = await supabase.from('monthly_ranking').select('*')
-      setRanking(data || [])
-    } catch {
-      // fallback: build manually
-      const { data: progress } = await supabase.from('reading_progress').select('user_id, progress_percent, last_read, books(genre)').eq('progress_percent', 100)
-      const now = new Date()
-      const thisMonth = (progress || []).filter(p => {
-        const d = new Date(p.last_read)
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      })
-      const counts = {}
-      thisMonth.forEach(p => { counts[p.user_id] = (counts[p.user_id] || 0) + 1 })
-      const { data: profiles } = await supabase.from('profiles').select('id, name, avatar_id')
-      const result = (profiles || []).map(p => ({ ...p, books_this_month: counts[p.id] || 0 }))
-        .sort((a, b) => b.books_this_month - a.books_this_month).slice(0, 20)
-      setRanking(result)
-    }
+    const { data } = await supabase
+      .from('monthly_ranking')
+      .select('id,name,avatar_id,total_books')
+      .order('total_books', { ascending: false })
+    setRanking(data || [])
     setLoading(false)
   }
 
@@ -50,16 +38,20 @@ export default function Ranking() {
   return (
     <div className="fade-in">
       <div style={{ padding: '20px 16px 10px' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 4 }}>🏆 Ranking</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text)' }}>🏆 Ranking</h1>
+        </div>
         <p style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 16 }}>Leitores mais ativos de {month}</p>
 
-        {/* Top 3 */}
-        {!loading && ranking.length >= 3 && (
+        {/* Top 3 pódio */}
+        {!loading && ranking.length >= 1 && (
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
             {[ranking[1], ranking[0], ranking[2]].map((reader, i) => {
-              if (!reader) return null
+              if (!reader) return <div key={i} style={{ flex: 1 }} />
               const podiumPos = i === 0 ? 2 : i === 1 ? 1 : 3
               const heights = { 1: 100, 2: 80, 3: 65 }
+              const colors = { 1: 'var(--gold)', 2: '#aaa', 3: '#c8873a' }
               const isMe = reader.id === user?.id
               return (
                 <div key={reader.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: podiumPos === 1 ? 1.2 : 1 }}>
@@ -67,9 +59,10 @@ export default function Ranking() {
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: podiumPos === 1 ? 14 : 12, marginBottom: 4, textAlign: 'center', color: isMe ? 'var(--gold)' : 'var(--text)' }}>
                     {reader.name || 'Leitor'}
                   </div>
-                  <div style={{ background: podiumPos === 1 ? 'var(--gold)' : podiumPos === 2 ? '#aaa' : '#c8873a', borderRadius: '8px 8px 0 0', width: '100%', height: heights[podiumPos], display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#0f0e0c' }}>
+                  <div style={{ background: colors[podiumPos], borderRadius: '8px 8px 0 0', width: '100%', height: heights[podiumPos], display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#0f0e0c' }}>
                     <div style={{ fontSize: 20 }}>{MEDAL[podiumPos - 1]}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700 }}>{reader.books_this_month} livros</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{reader.total_books}</div>
+                    <div style={{ fontSize: 10 }}>livro{reader.total_books !== 1 ? 's' : ''}</div>
                   </div>
                 </div>
               )
@@ -80,7 +73,7 @@ export default function Ranking() {
         {loading ? <Spinner /> : ranking.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--dim)' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>📚</div>
-            <div style={{ fontSize: 14 }}>Nenhuma leitura registrada este mês ainda</div>
+            <div style={{ fontSize: 14 }}>Nenhuma leitura registrada ainda</div>
             <div style={{ fontSize: 12, marginTop: 6 }}>Complete um livro para aparecer no ranking!</div>
           </div>
         ) : (
@@ -102,8 +95,8 @@ export default function Ranking() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', fontWeight: 700 }}>{reader.books_this_month}</div>
-                    <div style={{ fontSize: 10, color: 'var(--dim)' }}>livro{reader.books_this_month !== 1 ? 's' : ''}</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', fontWeight: 700 }}>{reader.total_books}</div>
+                    <div style={{ fontSize: 10, color: 'var(--dim)' }}>livro{reader.total_books !== 1 ? 's' : ''}</div>
                   </div>
                 </div>
               )
@@ -113,7 +106,7 @@ export default function Ranking() {
 
         {!user && (
           <div style={{ marginTop: 16, background: 'rgba(232,201,122,0.06)', border: '0.5px solid rgba(232,201,122,0.2)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>Faça login para aparecer no ranking</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>Faça login para aparecer no ranking</div>
           </div>
         )}
       </div>
