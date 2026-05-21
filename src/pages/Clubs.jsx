@@ -16,6 +16,7 @@ const AVATARS = { coffee:'☕',book:'📚',moon:'🌙',sun:'☀️',cat:'🐱',o
 
 function Chat({ club, user, onBack }) {
   const [messages, setMessages] = useState([])
+  const [profiles, setProfiles] = useState({})
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -23,14 +24,30 @@ function Chat({ club, user, onBack }) {
   const channelRef = useRef(null)
   const inputRef = useRef(null)
 
+  async function loadProfile(userId) {
+    if (profiles[userId]) return profiles[userId]
+    const { data } = await supabase.from('profiles').select('name, avatar_id').eq('id', userId).single()
+    if (data) setProfiles(prev => ({ ...prev, [userId]: data }))
+    return data
+  }
+
   const fetchMessages = useCallback(async () => {
     const { data, error } = await supabase
       .from('club_messages')
-      .select('id, message, created_at, user_id, profiles(name, avatar_id)')
+      .select('id, message, created_at, user_id')
       .eq('club_id', club.id)
       .order('created_at', { ascending: true })
       .limit(100)
-    if (!error) setMessages(data || [])
+
+    if (!error && data) {
+      setMessages(data)
+      // Carrega perfis únicos
+      const uniqueIds = [...new Set(data.map(m => m.user_id))]
+      for (const uid of uniqueIds) {
+        const { data: p } = await supabase.from('profiles').select('name, avatar_id').eq('id', uid).single()
+        if (p) setProfiles(prev => ({ ...prev, [uid]: p }))
+      }
+    }
     setLoading(false)
   }, [club.id])
 
@@ -38,23 +55,23 @@ function Chat({ club, user, onBack }) {
     fetchMessages()
 
     channelRef.current = supabase
-      .channel(`club-chat-${club.id}-${Date.now()}`)
+      .channel(`club-${club.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'club_messages',
         filter: `club_id=eq.${club.id}`
       }, async (payload) => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name, avatar_id')
-          .eq('id', payload.new.user_id)
-          .single()
+        const newMsg = payload.new
         setMessages(prev => {
-          // Evita duplicatas
-          if (prev.find(m => m.id === payload.new.id)) return prev
-          return [...prev, { ...payload.new, profiles: profile }]
+          if (prev.find(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
         })
+        // Carrega perfil do autor da nova mensagem
+        if (!profiles[newMsg.user_id]) {
+          const { data: p } = await supabase.from('profiles').select('name, avatar_id').eq('id', newMsg.user_id).single()
+          if (p) setProfiles(prev => ({ ...prev, [newMsg.user_id]: p }))
+        }
       })
       .subscribe()
 
@@ -77,7 +94,7 @@ function Chat({ club, user, onBack }) {
       user_id: user.id,
       message: msgText
     })
-    if (error) setText(msgText) // restaura se falhou
+    if (error) setText(msgText)
     setSending(false)
     inputRef.current?.focus()
   }
@@ -92,7 +109,7 @@ function Chat({ club, user, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0, background: 'var(--bg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text)' }}>{club.name}</div>
@@ -109,8 +126,9 @@ function Chat({ club, user, onBack }) {
           </div>
         ) : messages.map(msg => {
           const isMe = msg.user_id === user?.id
-          const avatar = AVATARS[msg.profiles?.avatar_id] || '👤'
-          const name = msg.profiles?.name || 'Leitor'
+          const profile = profiles[msg.user_id]
+          const avatar = AVATARS[profile?.avatar_id] || '👤'
+          const name = profile?.name || 'Leitor'
           return (
             <div key={msg.id} style={{ display: 'flex', gap: 8, flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end' }}>
               {!isMe && (
