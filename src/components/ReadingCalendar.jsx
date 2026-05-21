@@ -11,15 +11,15 @@ export default function ReadingCalendar() {
   useEffect(() => {
     if (!user) return
     async function fetch() {
-      // Busca dias que o usuário atualizou progresso
+      // Usa last_read igual ao useStreak
       const { data } = await supabase
         .from('reading_progress')
-        .select('updated_at')
+        .select('last_read')
         .eq('user_id', user.id)
-        .gte('updated_at', new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString())
+        .not('last_read', 'is', null)
 
       if (data) {
-        const days = new Set(data.map(r => new Date(r.updated_at).toDateString()))
+        const days = new Set(data.map(r => new Date(r.last_read).toDateString()))
         setReadDays(days)
       }
       setLoading(false)
@@ -27,29 +27,22 @@ export default function ReadingCalendar() {
     fetch()
   }, [user])
 
-  // Gera os últimos 30 dias
+  // Gera os últimos 35 dias (5 semanas completas)
   const days = []
-  for (let i = 29; i >= 0; i--) {
+  for (let i = 34; i >= 0; i--) {
     const d = new Date()
+    d.setHours(0, 0, 0, 0)
     d.setDate(today.getDate() - i)
     days.push(d)
   }
 
   const weekLabels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+  const totalRead = [...readDays].filter(d => {
+    const date = new Date(d)
+    return date >= new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
+  }).length
 
   if (loading) return null
-
-  const totalRead = readDays.size
-  const currentStreak = (() => {
-    let s = 0
-    for (let i = 0; i < 30; i++) {
-      const d = new Date()
-      d.setDate(today.getDate() - i)
-      if (readDays.has(d.toDateString())) s++
-      else break
-    }
-    return s
-  })()
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -65,9 +58,8 @@ export default function ReadingCalendar() {
         ))}
       </div>
 
-      {/* Calendário — últimos 30 dias alinhado ao dia da semana */}
+      {/* Calendário alinhado ao dia da semana */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-        {/* Espaço para alinhar o primeiro dia */}
         {Array.from({ length: days[0].getDay() }).map((_, i) => (
           <div key={`empty-${i}`} />
         ))}
@@ -79,12 +71,11 @@ export default function ReadingCalendar() {
               aspectRatio: '1',
               borderRadius: 6,
               background: isRead ? 'var(--gold)' : 'var(--surface)',
-              border: isToday ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+              border: isToday ? '2px solid var(--gold)' : '1px solid var(--border)',
               opacity: isRead ? 1 : 0.5,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 9, color: isRead ? '#0f0e0c' : 'var(--dim)',
               fontWeight: isRead ? 700 : 400,
-              transition: 'all 0.2s'
             }}>
               {d.getDate()}
             </div>
