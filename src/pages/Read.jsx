@@ -88,6 +88,7 @@ export default function Read() {
   const epubIsSupabase = isSupabaseUrl(epubUrl)
   const epubIsDrive = isDriveUrl(epubUrl)
   const pdfIsSupabase = isSupabaseUrl(pdfUrl)
+  const pdfIsDrive = isDriveUrl(pdfUrl)
 
   useEffect(() => {
     if (user && id) { fetchHighlights(); fetchBookmarks() }
@@ -215,12 +216,16 @@ export default function Read() {
   }
 
   async function openPdf() {
+    // PDFs do Google Drive abrem direto no navegador
+    if (pdfIsDrive) {
+      window.open(getDriveViewUrl(pdfUrl), '_blank')
+      return
+    }
     setMode('loading')
     try {
       const pdfjsLib = await import('pdfjs-dist')
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-      const url = pdfIsSupabase ? pdfUrl : `https://corsproxy.io/?${encodeURIComponent(getDriveDirectUrl(pdfUrl))}`
-      const doc = await pdfjsLib.getDocument({ url }).promise
+      const doc = await pdfjsLib.getDocument({ url: pdfUrl }).promise
       setPdfDoc(doc); setPdfTotal(doc.numPages); setPdfPage(1); setMode('pdf')
     } catch { setEpubError('Não foi possível carregar o PDF.'); setMode('choose') }
   }
@@ -357,8 +362,11 @@ export default function Read() {
         <div style={{ fontSize: 12, color: '#aaa' }}>Página {pdfPage} / {pdfTotal}</div>
         <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ background: 'none', border: '0.5px solid #e8c97a', borderRadius: 8, padding: '5px 10px', fontSize: 11, color: '#e8c97a', cursor: 'pointer' }}>{sharing ? '...' : '📱 Kindle'}</button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }} onMouseUp={handleTextSelection}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0', position: 'relative' }} onMouseUp={handleTextSelection}>
         <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto', maxWidth: '100%' }} />
+        {/* Tap zones */}
+        <div onClick={() => setPdfPage(p => Math.max(1, p-1))} style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', top: 60, width: '25%', height: 'calc(100% - 120px)', cursor: 'w-resize', zIndex: 10, WebkitTapHighlightColor: 'transparent' }} />
+        <div onClick={() => setPdfPage(p => Math.min(pdfTotal, p+1))} style={{ position: 'fixed', right: 0, top: 60, width: '25%', height: 'calc(100% - 120px)', cursor: 'e-resize', zIndex: 10, WebkitTapHighlightColor: 'transparent', maxWidth: 120 }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', borderTop: '0.5px solid #444', background: '#1e1e1e', flexShrink: 0 }}>
         <button onClick={() => setPdfPage(p => Math.max(1, p-1))} disabled={pdfPage <= 1} style={{ background: '#333', border: 'none', borderRadius: 10, padding: '8px 24px', fontSize: 20, color: '#ccc', opacity: pdfPage <= 1 ? 0.3 : 1, cursor: 'pointer' }}>‹</button>
@@ -463,7 +471,9 @@ export default function Read() {
             )}
             {hasPdf && (
               <>
-                <button onClick={openPdf} style={{ width: '100%', background: hasEpub ? 'var(--surface2)' : 'var(--gold)', color: hasEpub ? 'var(--text)' : '#0f0e0c', border: `0.5px solid ${hasEpub ? 'var(--border)' : 'transparent'}`, borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>📄 Ler PDF no app</button>
+                <button onClick={openPdf} style={{ width: '100%', background: hasEpub ? 'var(--surface2)' : 'var(--gold)', color: hasEpub ? 'var(--text)' : '#0f0e0c', border: `0.5px solid ${hasEpub ? 'var(--border)' : 'transparent'}`, borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>
+                  {pdfIsDrive ? '📄 Abrir PDF no Drive' : '📄 Ler PDF no app'}
+                </button>
                 <button onClick={() => sendToKindle('pdf')} disabled={sharing} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 12, padding: '12px 0', fontSize: 13, cursor: 'pointer' }}>
                   {sharing ? '⏳ Preparando...' : '📱 Enviar PDF para Kindle / outro app'}
                 </button>

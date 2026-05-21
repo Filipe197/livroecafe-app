@@ -14,7 +14,7 @@ function Spinner() {
 
 const AVATARS = { coffee:'☕',book:'📚',moon:'🌙',sun:'☀️',cat:'🐱',owl:'🦉',star:'⭐',fox:'🦊',dragon:'🐉',unicorn:'🦄',robot:'🤖',wizard:'🧙' }
 
-export function ClubChat({ clubId, clubName }) {
+export function ClubChat({ clubId, clubName, onBack }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [messages, setMessages] = useState([])
@@ -85,7 +85,7 @@ export function ClubChat({ clubId, clubName }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100svh', background: 'var(--bg)' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--bg)', flexShrink: 0 }}>
-        <button onClick={() => navigate('/clubs')} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text)' }}>{clubName}</div>
           <div style={{ fontSize: 11, color: 'var(--dim)' }}>Clube do livro · {messages.length} mensagens</div>
@@ -191,7 +191,7 @@ export default function Clubs() {
   if (activeClub) {
     return (
       <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'var(--bg)', maxWidth: 480, margin: '0 auto', left: '50%', transform: 'translateX(-50%)', width: '100%' }}>
-        <ClubChat clubId={activeClub.id} clubName={activeClub.name} />
+        <ClubChat clubId={activeClub.id} clubName={activeClub.name} onBack={() => setActiveClub(null)} />
         {/* Override back button */}
         <style>{`.club-back-override { display: none }`}</style>
       </div>
