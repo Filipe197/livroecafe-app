@@ -2,6 +2,44 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooks, useFeaturedBooks, useCategories } from '../hooks/useBooks'
 import { SkeletonCard, SkeletonRow, SkeletonGrid, SkeletonFeatured } from '../components/Skeleton'
+import { useAllReadingProgress } from '../hooks/useFavorites'
+import { supabase } from '../lib/supabase'
+import { useEffect } from 'react'
+
+const AVATARS = { coffee:'☕',book:'📚',moon:'🌙',sun:'☀️',cat:'🐱',owl:'🦉',star:'⭐',fox:'🦊',dragon:'🐉',unicorn:'🦄',robot:'🤖',wizard:'🧙' }
+
+function RankingCard({ navigate }) {
+  const [top, setTop] = useState([])
+
+  useEffect(() => {
+    supabase.from('monthly_ranking').select('id,name,avatar_id,total_books').order('total_books', { ascending: false }).limit(3).then(({ data }) => {
+      if (data) setTop(data)
+    })
+  }, [])
+
+  if (top.length === 0) return null
+
+  const medals = ['🥇', '🥈', '🥉']
+
+  return (
+    <div onClick={() => navigate('/ranking')} style={{ margin: '4px 16px 4px', background: 'linear-gradient(135deg, rgba(232,201,122,0.1), rgba(232,150,50,0.05))', border: '0.5px solid rgba(232,201,122,0.25)', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--text)' }}>🏆 Ranking do Mês</span>
+        <span style={{ fontSize: 11, color: 'var(--gold)' }}>Ver tudo →</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {top.map((u, i) => (
+          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, width: 24 }}>{medals[i]}</span>
+            <span style={{ fontSize: 16 }}>{AVATARS[u.avatar_id] || '👤'}</span>
+            <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{u.name || 'Leitor'}</span>
+            <span style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600 }}>{u.total_books} 📚</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState('Todos')
@@ -68,14 +106,17 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Ranking Card */}
+          <RankingCard navigate={navigate} />
+
           {/* Featured */}
-          <p className="section-label">✨ Destaques</p>
+          <p className="section-label" style={{ marginTop: 12 }}>❤ Destaques</p>
           {loadingFeat ? <SkeletonFeatured /> : (
             <div style={{ display: 'flex', gap: 10, padding: '0 16px 4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
               {featured.map(book => (
                 <div key={book.id} onClick={() => navigate(`/book/${book.id}`)} style={{ flex: '0 0 130px', borderRadius: 10, overflow: 'hidden', position: 'relative', cursor: 'pointer' }}>
                   <img src={book.cover_url} alt={book.title} style={{ width: '100%', height: 188, objectFit: 'cover' }}
-                    onError={e => { e.target.src = 'https://placehold.co/130x188/1a1916/e8c97a?text=📚' }} />
+                    onError={e => { e.target.src = 'https://placehold.co/130x188/1a1916/e8c97a?text=📖' }} />
                   {book.is_new && <span style={{ position: 'absolute', top: 8, left: 8, background: '#d45a3a', color: '#fff', fontSize: 9, fontWeight: 500, padding: '3px 7px', borderRadius: 8, textTransform: 'uppercase' }}>Novo</span>}
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.9))', padding: '20px 8px 8px' }}>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, lineHeight: 1.3, marginBottom: 2 }}>{book.title}</div>
@@ -95,10 +136,10 @@ export default function Home() {
                   <div key={book.id} onClick={() => navigate(`/book/${book.id}`)} style={{ flex: '0 0 110px', cursor: 'pointer' }}>
                     <div style={{ position: 'relative', marginBottom: 6 }}>
                       <img src={book.cover_url} alt={book.title} style={{ width: 110, height: 155, objectFit: 'cover', borderRadius: 8 }}
-                        onError={e => { e.target.src = 'https://placehold.co/110x155/1a1916/e8c97a?text=📚' }} />
+                        onError={e => { e.target.src = 'https://placehold.co/110x155/1a1916/e8c97a?text=📖' }} />
                       <span style={{ position: 'absolute', top: 6, left: 6, background: '#d45a3a', color: '#fff', fontSize: 8, fontWeight: 500, padding: '2px 6px', borderRadius: 6 }}>NOVO</span>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{book.title}</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--text)' }}>{book.title}</div>
                     <div style={{ fontSize: 10, color: 'var(--dim)' }}>{book.author}</div>
                   </div>
                 ))}
@@ -116,8 +157,8 @@ export default function Home() {
                 <div key={book.id} onClick={() => navigate(`/book/${book.id}`)} style={{ cursor: 'pointer' }}>
                   <img src={book.cover_url} alt={book.title}
                     style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', borderRadius: 7, marginBottom: 5 }}
-                    onError={e => { e.target.src = 'https://placehold.co/100x150/1a1916/e8c97a?text=📚' }} />
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{book.title}</div>
+                    onError={e => { e.target.src = 'https://placehold.co/100x150/1a1916/e8c97a?text=📖' }} />
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--text)' }}>{book.title}</div>
                   <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>{book.author}</div>
                 </div>
               ))}
@@ -132,9 +173,9 @@ export default function Home() {
 function BookRow({ book, onClick }) {
   return (
     <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 10, padding: 10, marginBottom: 8, cursor: 'pointer' }}>
-      <img src={book.cover_url} alt={book.title} style={{ width: 46, height: 66, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.src = 'https://placehold.co/46x66/1a1916/e8c97a?text=📚' }} />
+      <img src={book.cover_url} alt={book.title} style={{ width: 46, height: 66, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.src = 'https://placehold.co/46x66/1a1916/e8c97a?text=📖' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 600, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{book.title}</div>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontWeight: 600, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>{book.title}</div>
         <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 5 }}>{book.author}</div>
         <div style={{ display: 'flex', gap: 4 }}>
           {book.genre && <span className="tag">{book.genre}</span>}
