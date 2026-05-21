@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { useTheme } from '../hooks/useTheme.js'
+import { useTheme } from '../hooks/useTheme.jsx'
 import { useNotifications } from '../hooks/useNotifications.js'
 import { useFavorites, useAllReadingProgress } from '../hooks/useFavorites'
 import { BADGES, getBadgeStats } from '../data/badges'
