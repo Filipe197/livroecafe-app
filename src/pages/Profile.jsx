@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { useTheme } from '../hooks/useTheme.jsx'
@@ -6,6 +6,8 @@ import { useNotifications } from '../hooks/useNotifications.js'
 import { useFavorites, useAllReadingProgress } from '../hooks/useFavorites'
 import { BADGES, getBadgeStats } from '../data/badges'
 import { useStreak } from '../hooks/useStreak'
+import ReadingCalendar from '../components/ReadingCalendar'
+import DailyGoal from '../components/DailyGoal'
 
 const AVATARS = [
   { id: 'coffee', emoji: '☕', bg: '#e8c97a' },
@@ -42,16 +44,9 @@ function Toggle({ value, onChange }) {
   return (
     <div onClick={() => onChange(!value)} style={{
       width: 42, height: 24, background: value ? 'var(--gold)' : 'var(--border)',
-      borderRadius: 12, position: 'relative', cursor: 'pointer', flexShrink: 0,
-      transition: 'background 0.2s'
+      borderRadius: 12, position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s'
     }}>
-      <div style={{
-        width: 18, height: 18, background: '#fff', borderRadius: '50%',
-        position: 'absolute', top: 3,
-        left: value ? 21 : 3,
-        transition: 'left 0.2s',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-      }} />
+      <div style={{ width: 18, height: 18, background: '#fff', borderRadius: '50%', position: 'absolute', top: 3, left: value ? 21 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
     </div>
   )
 }
@@ -70,16 +65,14 @@ export default function Profile() {
   const [activeSettings, setActiveSettings] = useState(null)
   const [badgeTab, setBadgeTab] = useState('unlocked')
   const [notifEnabled, setNotifEnabled] = useState(permission === 'granted')
+  const [referralCopied, setReferralCopied] = useState(false)
   const navigate = useNavigate()
 
   const { streak, todayRead } = useStreak()
   const booksRead = allProgress.filter(p => p.progress_percent === 100).length
   const reading = allProgress.filter(p => p.progress_percent > 0 && p.progress_percent < 100).length
-
   const stats = getBadgeStats(allProgress, favorites, user)
   const unlockedBadges = BADGES.filter(b => b.condition(stats))
-  const lockedBadges = BADGES.filter(b => !b.condition(stats))
-
   const currentAvatar = AVATARS.find(a => a.id === (profile?.avatar_id || 'coffee')) || AVATARS[0]
   const displayName = profile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Leitor'
   const avatarUrl = user?.user_metadata?.avatar_url
@@ -90,6 +83,18 @@ export default function Profile() {
       setNotifEnabled(granted)
     } else {
       setNotifEnabled(val)
+    }
+  }
+
+  async function handleReferral() {
+    const url = `${window.location.origin}?ref=${user?.id?.slice(0, 8)}`
+    const text = `📚 Venha ler comigo no Livro & Café! ${url}`
+    if (navigator.share) {
+      await navigator.share({ title: 'Livro & Café', text, url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      setReferralCopied(true)
+      setTimeout(() => setReferralCopied(false), 2000)
     }
   }
 
@@ -122,24 +127,17 @@ export default function Profile() {
             <>
               {permission === 'denied' && (
                 <div style={{ background: 'rgba(212,90,58,0.1)', border: '0.5px solid rgba(212,90,58,0.3)', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#d45a3a', marginBottom: 12 }}>
-                  Notificações bloqueadas no navegador. Acesse as configurações do site para ativar.
+                  Notificações bloqueadas. Acesse as configurações do site para ativar.
                 </div>
               )}
-              {[
-                { label: 'Novos livros adicionados', key: 'new_books' },
-                { label: 'Lembretes de leitura diária', key: 'reminders' },
-                { label: 'Promoções e ofertas', key: 'promo' },
-              ].map(item => (
-                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '0.5px solid var(--border)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{item.label}</span>
-                  <Toggle
-                    value={notifEnabled && permission === 'granted'}
-                    onChange={(v) => handleToggleNotif(v)}
-                  />
+              {['Novos livros adicionados', 'Lembretes de leitura diária', 'Promoções e ofertas'].map(item => (
+                <div key={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '0.5px solid var(--border)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{item}</span>
+                  <Toggle value={notifEnabled && permission === 'granted'} onChange={handleToggleNotif} />
                 </div>
               ))}
               {permission !== 'granted' && (
-                <button onClick={requestPermission} style={{ marginTop: 12, width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 10, padding: '10px 0', fontSize: 13, fontWeight: 500 }}>
+                <button onClick={requestPermission} style={{ marginTop: 12, width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 10, padding: '10px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                   Ativar notificações
                 </button>
               )}
@@ -169,7 +167,7 @@ export default function Profile() {
             <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 500, marginBottom: 4 }}>♥ Plano Gratuito</div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>Acesso limitado à biblioteca</div>
           </div>
-          <button style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 10, padding: '12px 0', fontWeight: 500, fontSize: 14 }}>
+          <button style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 10, padding: '12px 0', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
             Assinar por R$ 14,99/mês
           </button>
         </div>
@@ -179,7 +177,7 @@ export default function Profile() {
       icon: '❓', label: 'Ajuda e suporte',
       content: (
         <div style={{ padding: '12px 0' }}>
-          {[['📧 Contato', 'suporte@livroecafe.com.br'], ['🌐 Site', 'livroecafe.com.br'], ['📱 Versão', '1.1.0']].map(([l, v]) => (
+          {[['📧 Contato', 'suporte@livroecafe.com.br'], ['🌐 Site', 'livroecafe.com.br'], ['📱 Versão', '1.2.0']].map(([l, v]) => (
             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '0.5px solid var(--border)' }}>
               <span style={{ fontSize: 13, color: 'var(--text)' }}>{l}</span>
               <span style={{ fontSize: 12, color: 'var(--dim)' }}>{v}</span>
@@ -214,9 +212,8 @@ export default function Profile() {
               <div onClick={() => editing && setShowAvatarPicker(p => !p)} style={{
                 width: 68, height: 68, borderRadius: '50%',
                 background: (AVATARS.find(a => a.id === (selectedAvatar || profile?.avatar_id)) || currentAvatar).bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, cursor: editing ? 'pointer' : 'default',
-                border: editing ? '2px dashed var(--gold)' : 'none', flexShrink: 0
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                cursor: editing ? 'pointer' : 'default', border: editing ? '2px dashed var(--gold)' : 'none', flexShrink: 0
               }}>
                 {(AVATARS.find(a => a.id === (selectedAvatar || profile?.avatar_id)) || currentAvatar).emoji}
               </div>
@@ -266,6 +263,9 @@ export default function Profile() {
           ))}
         </div>
 
+        {/* Meta diária */}
+        <DailyGoal minutesRead={0} />
+
         {/* Streak */}
         {streak > 0 && (
           <div style={{ marginBottom: 20, background: 'linear-gradient(135deg, rgba(212,90,58,0.15), rgba(232,150,50,0.15))', border: '0.5px solid rgba(212,90,58,0.3)', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -276,6 +276,9 @@ export default function Profile() {
             </div>
           </div>
         )}
+
+        {/* Histórico de leitura */}
+        <ReadingCalendar />
 
         {/* Badges */}
         <div style={{ marginBottom: 20 }}>
@@ -340,6 +343,20 @@ export default function Profile() {
           </>
         )}
 
+        {/* Indicação */}
+        <div style={{ marginBottom: 20, background: 'linear-gradient(135deg, rgba(232,201,122,0.1), rgba(232,150,50,0.05))', border: '0.5px solid rgba(232,201,122,0.3)', borderRadius: 12, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 28 }}>🎁</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Indique um amigo</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Compartilhe o Livro & Café com amigos leitores!</div>
+            </div>
+          </div>
+          <button onClick={handleReferral} style={{ width: '100%', background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            {referralCopied ? '✅ Link copiado!' : '🔗 Compartilhar meu link'}
+          </button>
+        </div>
+
         {/* Configurações */}
         <p className="section-label" style={{ padding: 0, margin: '0 0 10px' }}>Configurações</p>
         {settingsItems.map(item => (
@@ -354,7 +371,7 @@ export default function Profile() {
           </div>
         ))}
 
-        <button onClick={signOut} style={{ width: '100%', marginTop: 24, marginBottom: 32, padding: '13px 0', background: 'none', border: '0.5px solid var(--border)', borderRadius: 10, color: '#c0564a', fontSize: 14 }}>
+        <button onClick={signOut} style={{ width: '100%', marginTop: 24, marginBottom: 32, padding: '13px 0', background: 'none', border: '0.5px solid var(--border)', borderRadius: 10, color: '#c0564a', fontSize: 14, cursor: 'pointer' }}>
           Sair da conta
         </button>
       </div>

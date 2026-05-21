@@ -1,7 +1,7 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useBook, useBooks } from '../hooks/useBooks'
 import { useFavorites, useReadingProgress } from '../hooks/useFavorites'
-import HeartButton from '../components/HeartButton'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 function Spinner() {
@@ -21,19 +21,35 @@ export default function BookDetail() {
   const { isFavorite, toggleFavorite } = useFavorites()
   const { progress } = useReadingProgress(id)
   const { books: allBooks } = useBooks('Todos')
+  const [synopsisExpanded, setSynopsisExpanded] = useState(false)
 
   if (loading) return <Spinner />
   if (!book) return <div style={{ padding: 32, textAlign: 'center', color: 'var(--dim)' }}>Livro não encontrado</div>
 
   const fav = isFavorite(book.id)
   const formats = book.formats ? Object.keys(book.formats).filter(f => book.formats[f] && book.formats[f].length > 4) : []
-
-  // Similar books — same genre, different book
   const similar = allBooks.filter(b => b.id !== book.id && b.genre === book.genre).slice(0, 8)
+
+  const SYNOPSIS_LIMIT = 180
+  const longSynopsis = book.description && book.description.length > SYNOPSIS_LIMIT
+  const displayedSynopsis = longSynopsis && !synopsisExpanded
+    ? book.description.slice(0, SYNOPSIS_LIMIT).trimEnd() + '...'
+    : book.description
 
   async function handleFavorite() {
     if (!user) { navigate('/auth'); return }
     await toggleFavorite(book.id)
+  }
+
+  async function handleShare() {
+    const url = `${window.location.origin}/book/${book.id}`
+    const text = `Estou lendo "${book.title}" de ${book.author} no Livro & Café! 📚`
+    if (navigator.share) {
+      await navigator.share({ title: book.title, text, url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      alert('Link copiado!')
+    }
   }
 
   return (
@@ -50,15 +66,14 @@ export default function BookDetail() {
       <div style={{ display: 'flex', gap: 16, padding: '16px 16px 0' }}>
         <img src={book.cover_url} alt={book.title}
           style={{ width: 110, height: 158, borderRadius: 8, objectFit: 'cover', flexShrink: 0, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
-          onError={e => { e.target.src = 'https://placehold.co/110x158/1a1916/e8c97a?text=📚' }} />
+          onError={e => { e.target.src = 'https://placehold.co/110x158/1a1916/e8c97a?text=📖' }} />
         <div style={{ flex: 1, paddingTop: 4 }}>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 19, lineHeight: 1.3, marginBottom: 6 }}>{book.title}</h1>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 19, lineHeight: 1.3, marginBottom: 6, color: 'var(--text)' }}>{book.title}</h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>{book.author}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {book.genre && <span className="tag">{book.genre}</span>}
             {book.is_new && <span className="tag" style={{ background: 'rgba(212,90,58,0.15)', color: '#d45a3a' }}>Novo</span>}
           </div>
-          {/* Formats */}
           {formats.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {formats.map(f => (
@@ -81,21 +96,32 @@ export default function BookDetail() {
         </div>
       )}
 
-      {/* Sinopse */}
+      {/* Sinopse com Ler mais / Ler menos */}
       {book.description && (
         <div style={{ padding: '16px 16px 0' }}>
           <p className="section-label" style={{ padding: 0, margin: '0 0 8px' }}>Sinopse</p>
-          <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--muted)' }}>{book.description}</p>
+          <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--muted)' }}>{displayedSynopsis}</p>
+          {longSynopsis && (
+            <button
+              onClick={() => setSynopsisExpanded(e => !e)}
+              style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: 13, padding: '6px 0 0', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              {synopsisExpanded ? '▲ Ler menos' : '▼ Ler mais'}
+            </button>
+          )}
         </div>
       )}
 
       {/* Actions */}
       <div style={{ padding: '20px 16px 0', display: 'flex', gap: 10 }}>
-        <button onClick={() => navigate(`/read/${book.id}`)} style={{ flex: 1, background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 14 }}>
+        <button onClick={() => navigate(`/read/${book.id}`)} style={{ flex: 1, background: 'var(--gold)', color: '#0f0e0c', border: 'none', borderRadius: 12, padding: '13px 0', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
           {progress?.progress_percent > 0 ? '▶ Continuar leitura' : '📖 Ler agora'}
         </button>
-        <button onClick={handleFavorite} style={{ width: 48, background: fav ? 'rgba(232,201,122,0.15)' : 'var(--surface)', border: `0.5px solid ${fav ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 12, fontSize: 20, color: fav ? 'var(--gold)' : 'var(--muted)', transition: 'all 0.2s' }}>
+        <button onClick={handleFavorite} style={{ width: 48, background: fav ? 'rgba(232,201,122,0.15)' : 'var(--surface)', border: `0.5px solid ${fav ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 12, fontSize: 20, color: fav ? 'var(--gold)' : 'var(--muted)', cursor: 'pointer' }}>
           {fav ? '♥' : '♡'}
+        </button>
+        <button onClick={handleShare} style={{ width: 48, background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 12, fontSize: 18, color: 'var(--muted)', cursor: 'pointer' }}>
+          🔗
         </button>
       </div>
 
@@ -108,8 +134,8 @@ export default function BookDetail() {
               <div key={b.id} onClick={() => navigate(`/book/${b.id}`)} style={{ flex: '0 0 100px', cursor: 'pointer' }}>
                 <img src={b.cover_url} alt={b.title}
                   style={{ width: 100, height: 142, objectFit: 'cover', borderRadius: 7, marginBottom: 5 }}
-                  onError={e => { e.target.src = 'https://placehold.co/100x142/1a1916/e8c97a?text=📚' }} />
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{b.title}</div>
+                  onError={e => { e.target.src = 'https://placehold.co/100x142/1a1916/e8c97a?text=📖' }} />
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--text)' }}>{b.title}</div>
                 <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>{b.author}</div>
               </div>
             ))}

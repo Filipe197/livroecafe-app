@@ -21,6 +21,7 @@ function Chat({ club, user, onBack }) {
   const [sending, setSending] = useState(false)
   const bottomRef = useRef(null)
   const channelRef = useRef(null)
+  const inputRef = useRef(null)
 
   const fetchMessages = useCallback(async () => {
     const { data, error } = await supabase
@@ -36,22 +37,24 @@ function Chat({ club, user, onBack }) {
   useEffect(() => {
     fetchMessages()
 
-    // Subscribe to new messages
     channelRef.current = supabase
-      .channel(`club-chat-${club.id}`)
+      .channel(`club-chat-${club.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'club_messages',
         filter: `club_id=eq.${club.id}`
       }, async (payload) => {
-        // Fetch profile for new message
         const { data: profile } = await supabase
           .from('profiles')
           .select('name, avatar_id')
           .eq('id', payload.new.user_id)
           .single()
-        setMessages(prev => [...prev, { ...payload.new, profiles: profile }])
+        setMessages(prev => {
+          // Evita duplicatas
+          if (prev.find(m => m.id === payload.new.id)) return prev
+          return [...prev, { ...payload.new, profiles: profile }]
+        })
       })
       .subscribe()
 
@@ -67,27 +70,38 @@ function Chat({ club, user, onBack }) {
   async function send() {
     if (!text.trim() || !user || sending) return
     setSending(true)
+    const msgText = text.trim()
+    setText('')
     const { error } = await supabase.from('club_messages').insert({
       club_id: club.id,
       user_id: user.id,
-      message: text.trim()
+      message: msgText
     })
-    if (!error) setText('')
+    if (error) setText(msgText) // restaura se falhou
     setSending(false)
+    inputRef.current?.focus()
+  }
+
+  function formatTime(ts) {
+    const d = new Date(ts)
+    const now = new Date()
+    const isToday = d.toDateString() === now.toDateString()
+    if (isToday) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0, background: 'var(--bg)' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15 }}>{club.name}</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text)' }}>{club.name}</div>
           <div style={{ fontSize: 11, color: 'var(--dim)' }}>Clube do livro · {messages.length} mensagens</div>
         </div>
-        <button onClick={fetchMessages} style={{ background: 'none', border: 'none', color: 'var(--dim)', fontSize: 16, cursor: 'pointer' }}>↺</button>
+        <button onClick={fetchMessages} style={{ background: 'none', border: 'none', color: 'var(--dim)', fontSize: 16, cursor: 'pointer' }}>↻</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, WebkitOverflowScrolling: 'touch' }}>
         {loading ? <Spinner /> : messages.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--dim)', fontSize: 13 }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
@@ -112,7 +126,7 @@ function Chat({ club, user, onBack }) {
                   border: isMe ? 'none' : '0.5px solid var(--border)'
                 }}>{msg.message}</div>
                 <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2, textAlign: isMe ? 'right' : 'left', paddingLeft: 4 }}>
-                  {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTime(msg.created_at)}
                 </div>
               </div>
             </div>
@@ -122,8 +136,9 @@ function Chat({ club, user, onBack }) {
       </div>
 
       {user ? (
-        <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0, background: 'var(--bg)' }}>
+        <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0, background: 'var(--bg)', paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))' }}>
           <input
+            ref={inputRef}
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
@@ -135,7 +150,7 @@ function Chat({ club, user, onBack }) {
             border: 'none', borderRadius: '50%', cursor: text.trim() ? 'pointer' : 'not-allowed',
             fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             color: text.trim() ? '#0f0e0c' : 'var(--dim)'
-          }}>→</button>
+          }}>➤</button>
         </div>
       ) : (
         <div style={{ padding: '12px 16px', borderTop: '0.5px solid var(--border)', textAlign: 'center', fontSize: 13, color: 'var(--dim)' }}>
@@ -206,7 +221,7 @@ export default function Clubs() {
     <div className="fade-in">
       <div style={{ padding: '20px 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 4 }}>Clube do Livro</h1>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 4, color: 'var(--text)' }}>Clube do Livro</h1>
           <p style={{ fontSize: 13, color: 'var(--dim)' }}>Leia e discuta com outros leitores</p>
         </div>
         {user && (
@@ -216,7 +231,7 @@ export default function Clubs() {
 
       {showCreate && (
         <div style={{ margin: '0 16px 16px', background: 'var(--surface)', border: '0.5px solid var(--gold)', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, marginBottom: 12 }}>Novo Clube</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, marginBottom: 12, color: 'var(--text)' }}>Novo Clube</div>
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome do clube..."
             style={{ width: '100%', background: 'var(--surface2)', border: '0.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', color: 'var(--text)', fontSize: 14, outline: 'none', fontFamily: 'var(--font-sans)', marginBottom: 8, boxSizing: 'border-box' }} />
           <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descrição (opcional)..." rows={2}
@@ -245,7 +260,7 @@ export default function Clubs() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(232,201,122,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📖</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)' }}>
                       {club.name}
                       {isMember && <span style={{ fontSize: 9, background: 'rgba(232,201,122,0.15)', color: 'var(--gold)', padding: '1px 6px', borderRadius: 6, fontFamily: 'var(--font-sans)' }}>MEMBRO</span>}
                     </div>
@@ -266,6 +281,7 @@ export default function Clubs() {
           })}
         </div>
       )}
+      <div style={{ height: 80 }} />
     </div>
   )
 }
