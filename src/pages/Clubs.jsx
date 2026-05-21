@@ -94,7 +94,7 @@ export function ClubChat({ clubId, clubName, onBack }) {
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 80px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
         {loading ? <Spinner /> : messages.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--dim)', fontSize: 13 }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
@@ -119,9 +119,9 @@ export function ClubChat({ clubId, clubName, onBack }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Input - fixed at bottom */}
       {user ? (
-        <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--bg)', flexShrink: 0 }}>
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '10px 16px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--bg)', zIndex: 300 }}>
           <input
             ref={inputRef}
             value={text}
@@ -133,7 +133,7 @@ export function ClubChat({ clubId, clubName, onBack }) {
           <button onClick={send} disabled={!text.trim() || sending} style={{ width: 40, height: 40, background: text.trim() ? 'var(--gold)' : 'var(--surface)', border: 'none', borderRadius: '50%', cursor: text.trim() ? 'pointer' : 'not-allowed', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: text.trim() ? '#0f0e0c' : 'var(--dim)' }}>➤</button>
         </div>
       ) : (
-        <div style={{ padding: '12px 16px', borderTop: '0.5px solid var(--border)', textAlign: 'center', fontSize: 13, color: 'var(--dim)' }}>Faça login para participar</div>
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '12px 16px 16px', borderTop: '0.5px solid var(--border)', textAlign: 'center', fontSize: 13, color: 'var(--dim)', background: 'var(--bg)', zIndex: 300 }}>Faça login para participar</div>
       )}
     </div>
   )
