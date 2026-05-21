@@ -108,7 +108,7 @@ function Chat({ club, user, onBack }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100vh', background: 'var(--bg)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, height: '100%', background: 'var(--bg)', zIndex: 50 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
         <div style={{ flex: 1 }}>
